@@ -52,9 +52,20 @@ class MFile < BinData::Record
   int64    :filesize
   m_string :ext
   uint32   :numattrs
-  array :attrs, :initial_length => :numattrs do
-    uint32
-  end
+
+  # We make assumptions based on the protocol for
+  # extended attribute format:
+  # We have a max of 3 extra attributes, the
+  # first one being bitrate, second one duration
+  # and third one whether or not the file is VBR.
+  # (http://museek-plus.sourceforge.net/museekplusprotocol.html#filentry)
+  uint32 :bitrate, onlyif: lambda {numattrs >= 1}
+  uint32 :duration, onlyif: lambda {numattrs >= 2}
+  uint32 :vbr, onlyif: lambda {numattrs == 3}
+
+  #array :attrs, :initial_length => :numattrs do
+  #  uint32
+  #end
 end
 
 class Folder < BinData::Record
@@ -189,13 +200,13 @@ end
 
 # Client sent
 
-  class Client_Login < BinData::Record
-    endian :little
-    uint32 :code, :value => 0x002
-    m_string :algorithm
-    m_string :chresponse
-    uint32 :mask
-  end
+class Client_Login < BinData::Record
+  endian :little
+  uint32 :code, :value => 0x002
+  m_string :algorithm
+  m_string :chresponse
+  uint32 :mask
+end
 
 class Client_PeerExists < BinData::Record
   endian :little
