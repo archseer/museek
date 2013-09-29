@@ -47,7 +47,6 @@ class Museek
 
   def fetch
     return false unless socket.ready?
-
     return Master.read(@socket)
   end
   private :fetch
@@ -69,8 +68,10 @@ class Museek
       resp.mask = 0x00
 
       send(resp)
+    when 0x002, 0x003, 0x005
+
     else
-      puts "Unknown code! 0x#{message[:code].to_s(16).rjust(3, '0')} with params #{message[:params].inspect}"
+      puts "Unknown code! 0x#{'%03x' % message[:code]} with params #{message[:params].inspect}"
     end
   end
 
