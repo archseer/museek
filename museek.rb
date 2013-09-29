@@ -31,23 +31,17 @@ class Museek
 
     Thread.new do
       while true
-        messages = []
-        while msg = fetch
-          messages << msg
-        end
-
-        messages.each do |msg|
+        while @socket.ready?
+          msg = fetch
           process(msg)
         end
-
         sleep 1
       end
     end
   end
 
   def fetch
-    return false unless socket.ready?
-    return Master.read(@socket)
+    Master.read(@socket)
   end
   private :fetch
 
@@ -68,8 +62,13 @@ class Museek
       resp.mask = 0x00
 
       send(resp)
-    when 0x002, 0x003, 0x005
-
+    when 0x002, 0x003
+    when 0x005
+      resp = Client_Search.new
+      resp.type = 0
+      resp.query = ".ogg"
+      send(resp)
+    when 0x401, 0x402
     else
       puts "Unknown code! 0x#{'%03x' % message[:code]} with params #{message[:params].inspect}"
     end

@@ -1,5 +1,6 @@
 require 'bindata'
 
+# - primitive types
 class MString < BinData::Primitive
   endian :little
   uint32 :len,  :value => lambda { data.length }
@@ -18,6 +19,59 @@ class Bool < BinData::Primitive
 
   def set(v)
     self.data = (v ? 1 : 0)
+  end
+end
+
+# - complex types
+
+class UserData < BinData::Record
+  endian :little
+  uint32 :status
+  uint32 :avgspeed
+  uint32 :downloadnum
+  uint32 :files
+  uint32 :dirs
+  bool :slotsfree
+end
+
+class Transfer < BinData::Record
+  endian :little
+  bool :is_upload
+  m_string :user
+  m_string :path
+  uint32 :place # in queue
+  uint32 :state
+  m_string :error
+  int64 :position
+  int64 :filesize
+  uint32 :rate
+end
+
+class MFile < BinData::Record
+  endian :little
+  int64    :filesize
+  m_string :ext
+  uint32   :numattrs
+  array :attrs, :initial_length => :numattrs do
+    uint32
+  end
+end
+
+class Folder < BinData::Record
+  endian :little
+  uint32 :numfiles
+  array :files, :initial_length => :numfiles do
+    m_string :file
+    m_file :info
+  end
+end
+
+class SharesDB < BinData::Record
+  endian :little
+  uint32 :numfolders
+  array :folders, :initial_length => :numfolders do
+    m_string :folder
+    folder :files
   end
 end
 
@@ -106,7 +160,17 @@ end
 class Search < BinData::Record
   endian :little
   m_string :query
-  uit32 :ticket
+  uint32 :ticket
+end
+
+class SearchReply < BinData::Record
+  endian :little
+  uint32 :ticket
+  m_string :username
+  bool :slotfree
+  uint32 :avgspeed
+  uint32 :queuelen
+  folder :results
 end
 
 # - 5xx range - Transfers
@@ -145,6 +209,13 @@ class Client_PeerStatus < BinData::Record
   m_string :username
 end
 
+class Client_Search < BinData::Record
+  endian :little
+  uint32 :code, :value => 0x401
+  uint32 :type
+  m_string :query
+end
+
 # --- Encapsulates the main message format and parsing, 
 # automatically detecting the message type.
 
@@ -167,8 +238,8 @@ class Master < BinData::Record
     # 0x205
     peer_address    0x206
 
-    search 0x401
-    # 0x402
+    search       0x401
+    search_reply 0x402
     
     unknown :default, :len => lambda { len - 4 }
   end
