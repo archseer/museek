@@ -86,6 +86,16 @@ class SharesDB < BinData::Record
   end
 end
 
+class UserData < BinData::Record
+  endian :little
+  uint32 :status
+  uint32 :avgspeed
+  uint32 :downloadnum
+  uint32 :files
+  uint32 :dirs
+  bool :slotsfree
+end
+
 # - 0xx range -- Basic
 
 class Ping < BinData::Record
@@ -157,6 +167,13 @@ class UserInfo < BinData::Record
   bool :slotfree
 end
 
+
+class UserShares < BinData::Record
+  endian :little
+  m_string :username
+  sharesdb :shares
+end
+
 class PeerAddress < BinData::Record
   endian :little
   m_string :username
@@ -165,6 +182,61 @@ class PeerAddress < BinData::Record
 end
 
 # - 3xx range - Rooms
+
+class RoomState < BinData::Record
+  endian :little
+  uint32 :numrooms
+  array :rooms, :initial_length => :numrooms do
+    m_string :room_name
+    uint32 :numusers
+  end
+  uint32 :numjoined
+  array :joined_rooms, :initial_length => :numjoined do
+    m_string :room_name
+    uint32 :numusers
+    array :users, :initial_length => :numusers do
+      m_string :username
+      user_data :data
+    end
+    uint32 :numtickers
+    array :tickers, initial_length => :numtickers do
+      m_string :username
+      m_string :message
+    end
+  end
+end
+
+class RoomList < BinData::Record
+  endian :little
+  uint32 :numrooms
+  array :rooms, :initial_length => :numrooms do
+    m_string :room_name
+    uint32 :numusers
+  end
+end
+
+class PrivateMessage < BinData::Record
+  endian :little
+  uint32 :direction
+  uint32 :timestamp
+  m_string :username
+  m_string :message
+end
+
+class JoinRoom < BinData::Record
+  endian :little
+  m_string :room
+  uint32 :numusers
+  array :users, :initial_length => :numusers do
+    m_string :username
+    user_data :data
+  end
+end
+
+class LeaveRoom < BinData::Record
+  endian :little
+  m_string :room
+end
 
 # - 4xx range - Search
 
@@ -186,9 +258,71 @@ end
 
 # - 5xx range - Transfers
 
+class TransferState < BinData::Record
+  endian :little
+  uint32 :numtransfers
+  array :transfers, :initial_length => :numtransfers do
+    transfer
+  end
+end
+
+class TransferUpdate < BinData::Record
+  endian :little
+  transfer :entry
+end
+
+class TransferRemove < BinData::Record
+  endian :little
+  bool :upload
+  m_string :username
+  m_string :path
+end
+
 # - 6xx range - Recommendations, similar users
 
+class GetRecommendations < BinData::Record
+  endian :little
+  uint32 :numrecommendations
+
+  array :recommendations, :initial_length => :numrecommendations do
+    m_string :recommendation
+    uint32 :numrecommendation
+  end
+end
+
+class GetGlobalRecommendations < BinData::Record
+  endian :little
+  uint32 :numrecommendations
+
+  array :recommendations, :initial_length => :numrecommendations do
+    m_string :recommendation
+    uint32 :numrecommendation
+  end
+end
+
+class GetSimilarUsers < BinData::Record
+  endian :little
+  uint32 :numusers
+
+  array :users, :initial_length => :numusers do
+    m_string :username
+    uint32 :numuser # user status
+  end
+end
+
+class GetItemRecommendations < BinData::Record
+  endian :little
+  m_string :item
+  uint32 :numrecommendations
+
+  array :recommendations, :initial_length => :numrecommendations do
+    m_string :recommendation
+    uint32 :numrecommendation
+  end
+end
 # - 7xx range - Connection, rescan shares
+
+# - none -
 
 # Unknown response handler
 
@@ -227,7 +361,7 @@ class Client_Search < BinData::Record
   m_string :query
 end
 
-# --- Encapsulates the main message format and parsing, 
+# --- Encapsulates the main message format and parsing,
 # automatically detecting the message type.
 
 class Master < BinData::Record
@@ -235,22 +369,37 @@ class Master < BinData::Record
   uint32 :len
   uint32 :code
   choice :params, :selection => :code do
-    ping           0x000
-    challenge      0x001
-    login          0x002
-    server_state   0x003
-    status         0x005
-    status_message 0x010
+    ping            0x000
+    challenge       0x001
+    login           0x002
+    server_state    0x003
+    status          0x005
+    status_message  0x010
 
     peer_exists     0x201
     peer_status     0x202
     peer_statistics 0x203
     user_info       0x204
-    # 0x205
+    user_shares     0x205
     peer_address    0x206
 
-    search       0x401
-    search_reply 0x402
+    room_state      0x300
+    room_list       0x301
+    private_message 0x302
+    join_room       0x303
+    leave_room      0x304
+
+    search          0x401
+    search_reply    0x402
+
+    transfer_state  0x500
+    transfer_update 0x501
+    transfer_remove 0x502
+
+    get_recommendations 0x600
+    get_global_recommendations 0x601
+    get_similar_users 0x602
+    get_item_recommendations 0x603
     
     unknown :default, :len => lambda { len - 4 }
   end
