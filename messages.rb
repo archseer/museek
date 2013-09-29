@@ -1,6 +1,6 @@
 require 'bindata'
 
-class MuseekString < BinData::Primitive
+class MString < BinData::Primitive
   endian :little
   uint32 :len,  :value => lambda { data.length }
   string :data, :read_length => :len
@@ -24,42 +24,56 @@ end
 class Challenge < BinData::Record
   endian :little
   uint32 :version
-  museek_string :challenge
+  m_string :challenge
 end
 
 class Ping < BinData::Record
   endian :little
-  uint32 :code, :value => 000
   uint32 :id
+end
+
+class Login < BinData::Record
+  endian :little
+  bool :ok
+  m_string :message
+  m_string :challenge
 end
 
 class ServerState < BinData::Record
   endian :little
   bool :connected
-  museek_string :username
+  m_string :username
 end
 
-module Incoming
-  class Status < BinData::Record
-    endian :little
-    uint32 :status
-  end
-
-  class Login < BinData::Record
-    endian :little
-    bool :ok
-    museek_string :message
-    museek_string :challenge
-  end
+class Status < BinData::Record
+  endian :little
+  uint32 :status
 end
 
-module Outgoing
+# Client sent
 
-  class Login < BinData::Record
+  class Client_Login < BinData::Record
     endian :little
     uint32 :code, :value => 002
-    museek_string :algorithm
-    museek_string :chresponse
+    m_string :algorithm
+    m_string :chresponse
     uint32 :mask
+  end
+
+
+# --- Encapsulates the main message format and parsing, 
+# automatically detecting the message type.
+
+class Master < BinData::Record
+  endian :little
+  uint32 :len
+  uint32 :code
+  choice :params, :selection => :code do
+    ping         0x000
+    challenge    0x001
+    login        0x002
+    server_state 0x003
+    status       0x005
+    rest :default
   end
 end
