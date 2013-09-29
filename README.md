@@ -1,4 +1,3 @@
-museek
-======
+# museek
 
-ruby interface to museek
+Ruby library to interface with the museekd(-plus) server. Work in progress.
